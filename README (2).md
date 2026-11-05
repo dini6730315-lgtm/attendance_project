@@ -1,66 +1,141 @@
-מערכת זו היא צינור עיבוד (Pipeline) מודולרי, דטרמיניסטי ואובייקט־אוריינטטיבי המיועד לאוטומציה של קליטה, פרסור, אימות אינווריאנטים וגנרוט מחדש של דוחות נוכחות (סוג A וסוג B) מתוך קבצי PDF סרוקים, תוך שמירה מלאה על תקני עברית (RTL).
+# Attendance Report Generator
+## מחולל וריאציות לדוחות נוכחות
 
-מבנה הפרויקט
-BaseParser – מחלקת בסיס אבסטרקטית המגדירה את ממשק הפרסור ואת הלוגיקה המשותפת (כגון חישוב שעות נטו).
+### 1. תיאור הפרויקט
 
-TypeAParser / TypeBParser – מחלקות יורשות המממשות את הפרסור הספציפי לכל סוג דוח.
+הפרויקט הוא מערכת Python לעיבוד וליצירה מחדש של דוחות נוכחות מסוג A ו־Type B מתוך קובצי PDF סרוקים.
 
-get_parser_for_report() – פונקציית מפעל (Factory) לבחירה פולימורפית של הפרסר המתאים.
+המערכת מבצעת תהליך עיבוד (Pipeline) הכולל:
+1. חילוץ טקסט מקובץ PDF באמצעות OCR.
+2. זיהוי סוג הדוח.
+3. פענוח הנתונים למבנה נתונים אחיד.
+4. בדיקת תקינות הנתונים (Invariants).
+5. שינוי נתוני הדוח באמצעות אסטרטגיה מתאימה.
+6. יצירת קובץ PDF חדש.
 
-AttendanceReport / AttendanceRow – מודלי נתונים (dataclass) המנתקים לחלוטין בין שלב הקליטה לשלב הגנרוט.
+המערכת בנויה בצורה מודולרית ואובייקט־אוריינטטיבית, תוך הפרדה בין שלבי העיבוד השונים.
 
-גנרטור PDF מבוסס fpdf2 עם תמיכה מלאה ב־python-bidi ו־arabic-reshaper.
+---
 
-דרישות מערכת והתקנה
-Python 3.10+ (מומלץ Python 3.14).
+### 2. מבנה הפרויקט
 
-התקנת החבילות הנדרשות באמצעות הטרמינל:
+```text
+attendance_project/
+│
+├── main.py
+├── config.py
+│
+├── models/
+│   └── attendance_models.py
+│
+├── parsers/
+│   ├── base_parser.py
+│   ├── type_a_parser.py
+│   ├── type_b_parser.py
+│   ├── parser_factory.py
+│   └── ocr_engine.py
+│
+├── transformers/
+│   ├── invariants.py
+│   ├── base_transformation_strategy.py
+│   ├── type_a_transformation_strategy.py
+│   ├── type_b_transformation_strategy.py
+│   └── transformation_service.py
+│
+├── generators/
+│   ├── ...
+│
+└── tests/
+    └── ...
+```
 
-Bash
-pip install pandas pytesseract pdf2image fpdf2 python-bidi arabic-reshaper openpyxl
-התקנת רכיבים חיצוניים:
+---
 
-Tesseract-OCR: יש לוודא התקנה במחשב (ברירת מחדל בקוד: C:\Program Files\Tesseract-OCR\tesseract.exe) עם חבילת שפה עברית (heb).
+### 3. ארכיטקטורת המערכת
 
-Poppler: נדרש עבור pdf2image (ברירת מחדל בקוד: C:\Library\bin).
+#### Domain – מודלי הנתונים
 
-גופנים: יש לוודא זמינות גופני Arial ו־Arial Bold בתיקיית המערכת (C:\Windows\Fonts).
+הקובץ `models/attendance_models.py` מכיל את מודלי הנתונים המרכזיים:
 
-הפעלת הצינור (Pipeline)
-להלן דוגמה להרצת הצינור המלא מקצה לקצה מתוך סביבת פייתון:
+- `AttendanceRow` – מייצג שורת נוכחות בודדת.
+- `AttendanceReport` – מייצג דוח נוכחות שלם.
 
-Python
-from your_module import get_parser_for_report, parse_pdf_to_raw_lines, identify_report_type, generate_report_pdf
+המודלים מנותקים מתהליך חילוץ הנתונים ומאופן יצירת קובץ הפלט.
 
-# 1. טעינת קובץ המקור וביצוע OCR גולמי
-pdf_path = 'n_r_5_n.pdf'
-raw_lines = parse_pdf_to_raw_lines(pdf_path)
+`AttendanceRow` מוגדרת כ־frozen dataclass, כדי למנוע שינוי ישיר של שדות השורה לאחר יצירתה.
 
-# 2. בחירת הפרסר המתאים באופן דינמי (ללא תנאי if type)
-parser = get_parser_for_report(raw_lines)
+#### Parsing – חילוץ ופענוח
 
-# 3. פרסור הנתונים לאובייקט מובנה (AttendanceReport)
-report_obj = parser.parse(raw_lines)
+אחראי על קריאת קובצי ה־PDF והפיכת המידע הגולמי לנתונים מובנים.
 
-# 4. גנרוט קובץ PDF חדש ונקי התואם למקור
-generate_report_pdf(report_obj, output_pdf_path="attendance_report_output.pdf")
-יומן החלטות ארכיטקטוניות (Decision Log)
-מעבר מ־WeasyPrint ל־fpdf2 לגנרוט PDF:
+- `ocr_engine.py` – מבצע המרת PDF לתמונה וחילוץ טקסט באמצעות Tesseract OCR.
+- `BaseParser` – מחלקת בסיס המגדירה את ממשק הפענוח.
+- `TypeAParser` – מפענח דוחות מסוג A.
+- `TypeBParser` – מפענח דוחות מסוג B.
+- `get_parser_for_report()` – פונקציית Factory המזהה את סוג הדוח ומחזירה את ה־Parser המתאים.
 
-הבעיה: WeasyPrint דרשה ספריות מערכת חיצוניות (כגון Pango/GObject) שעוררו שגיאות סביבה והתקנה מורכבות.
+#### Transformation – שינוי הנתונים
 
-ההחלטה: מעבר לספריית fpdf2 בשילוב python-bidi ו־arabic-reshaper.
+אחראי על יצירת וריאציה חדשה של הדוח.
 
-הנימוק: מאפשר פתרון נקי, יציב ותלוי־פייתון בלבד, תוך הבטחת הפרדה ארכיטקטונית מושלמת שבה פונקציית הגנרוט מקבלת אך ורק את אובייקט הדו"ח ואינה תלויה כלל בלוגיקת ה־OCR.
+- `BaseTransformationStrategy` – מגדירה את ממשק אסטרטגיות השינוי.
+- `TypeATransformationStrategy` – אסטרטגיית שינוי לדוחות מסוג A.
+- `TypeBTransformationStrategy` – אסטרטגיית שינוי לדוחות מסוג B.
+- `TransformationService` – בוחרת ומפעילה את אסטרטגיית השינוי בהתאם לסוג הדוח.
+- `invariants.py` – מכיל פונקציות לבדיקת תקינות הנתונים ולחישוב שעות עבודה.
 
-יישום ארכיטקטורה אובייקט־אוריינטטיבית (Polymorphism):
+#### Generation – יצירת הדוח
 
-ההחלטה: יצירת BaseParser ממנו יורשים TypeAParser ו־TypeBParser, בשילוב פונקציית Factory.
+אחראי על הפקת קובץ PDF חדש מתוך אובייקט `AttendanceReport`.
 
-הנימוק: מניעת כפילות קוד (DRY), סילוק תנאי if type מיותרים, והקלה על הרחבת המערכת לתמיכה בסוגי דוחות נוספים בעתיד.
+הגנרטור מקבל את אובייקט הדוח ואינו תלוי במימוש של שלב ה־Parsing או ב־OCR.
 
-דטרמיניזם ואימות אינווריאנטים:
+הפקת ה־PDF מתבצעת באמצעות `fpdf2`, עם תמיכה בעיבוד טקסט בעברית באמצעות `python-bidi` ו־`arabic-reshaper`.
 
-ההחלטה: שימוש ב־random.seed(42) ובדיקות אימות לחתימות MD5 של אובייקטי הדו"ח בין הרצות עוקבות.
+---
 
-הנימוק: הבטחת תוצאות עקביות, דטרמיניסטיות לחלוטין וחפות מהפתעות בכל הרצה של הצינור.
+### 4. דרישות מערכת
+
+- Python 3.10 ומעלה.
+- Tesseract OCR.
+- Poppler.
+- גופני Arial ו־Arial Bold.
+
+#### התקנת ספריות Python
+
+יש להריץ בטרמינל:
+
+```bash
+pip install pdf2image pytesseract fpdf2 python-bidi arabic-reshaper
+```
+
+אם הפרויקט משתמש גם בספריות נוספות, יש להתקינן בהתאם לייבואים בקוד.
+
+#### התקנת רכיבים חיצוניים
+
+**Tesseract OCR**
+
+יש להתקין את Tesseract ולוודא שחבילת השפה העברית (`heb`) מותקנת.
+
+**Poppler**
+
+נדרש לצורך המרת קובצי PDF לתמונות באמצעות `pdf2image`.
+
+**גופנים**
+
+יש לוודא שקובצי Arial ו־Arial Bold זמינים במחשב.
+
+---
+
+### 5. הגדרת נתיבים ומשתני סביבה
+
+הנתיבים לרכיבים החיצוניים מנוהלים בקובץ `config.py`.
+
+הקובץ משתמש ב־`os.getenv` כדי לאפשר הגדרת נתיבים באמצעות משתני סביבה, במקום לפזר אותם בקבצי הפרויקט.
+
+המשתנים הנתמכים:
+
+| משתנה | תפקיד |
+|---|---|
+| `TESSERACT_CMD` | נתיב לקובץ ההפעלה של Tesseract |
+| `POPPLER

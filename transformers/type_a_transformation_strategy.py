@@ -50,5 +50,4 @@ class TypeATransformationStrategy(BaseTransformationStrategy):
             employee_name=report.employee_name,
             month=report.month,
             report_type=report.report_type,
-            rows=new_rows
-        )
+            rows=tuple(new_rows)        )

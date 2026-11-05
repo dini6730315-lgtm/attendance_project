@@ -15,9 +15,10 @@ def calculate_hours_diff(entry: str, exit_time: str, break_hours: float = 0.0) -
 def validate_row_invariants(row: AttendanceRow) -> bool:
 
     try:
-        entry_h, entry_m = map(int, row.entry.split(":"))
-        exit_h, exit_m = map(int, row.exit_time.split(":"))
-
+        entry_h = row.entry.hour
+        entry_m = row.entry.minute
+        exit_h = row.exit_time.hour
+        exit_m = row.exit_time.minute
         entry_minutes = entry_h * 60 + entry_m
         exit_minutes = exit_h * 60 + exit_m
 
@@ -72,6 +73,12 @@ def validate_report_invariants(report: AttendanceReport) -> AttendanceReport:
             "כל שורות הדוח נפסלו בבדיקת התקינות!"
         )
 
-    report.rows = valid_rows
+    return AttendanceReport(
+        company_name=report.company_name,
+        employee_name=report.employee_name,
+        month=report.month,
+        report_type=report.report_type,
+        rows=tuple(valid_rows)
+    )
 
-    return report
+   

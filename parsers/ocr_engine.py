@@ -62,6 +62,24 @@ def extract_summary_from_image(image):
     print("=======================\n")
 
     return summary_text
+def extract_times_with_position(image):
+    data = pytesseract.image_to_data(
+        image,
+        lang="heb",
+        config="--psm 6",
+        output_type=pytesseract.Output.DICT
+    )
+
+    results = []
+
+    for i, word in enumerate(data["text"]):
+        match = re.search(r'\b\d{1,2}:\d{2}\b', word)
+
+        if match:
+            y_position = data["top"][i]
+            results.append((y_position, match.group(0)))
+
+    return sorted(results, key=lambda x: x[0])
 def extract_text_from_pdf(pdf_filename: str) -> List[str]:
 
     try:

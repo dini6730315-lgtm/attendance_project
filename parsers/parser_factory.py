@@ -38,8 +38,7 @@ def get_parser_for_report(lines: List[str]) -> BaseParser:
     if "מקוםעבודה" in normalized_text:
         score_b += 2
 
-    if "גליליון" in normalized_text or "גונן" in normalized_text:
-        score_b += 2
+
 
     print(f"Type A={score_a}, Type B={score_b}")
 

@@ -1,59 +1,57 @@
-import re
 from typing import List
-from parsers.base_parser import BaseParser
+from models.report_types import ReportType
+from .base_parser import BaseParser
 from models.attendance_models import AttendanceReport, AttendanceRow
 from datetime import datetime
 
-class TypeBParser(BaseParser):
 
+class TypeBParser(BaseParser):
     def parse(self, lines: List[str]) -> AttendanceReport:
         report_rows = []
         employee_name = "לא זוהה"
+        company_name = "לא זוהה"
+
+        cleaned_lines = self.clean_lines(lines)
 
         days_list = [
-            "ראשון", "שני", "שלישי", "רביעי",
-            "חמישי", "שישי", "שבת"
+            "שני", "שלישי", "רביעי", "חמישי",
+            "שישי", "שבת", "ראשון"
         ]
 
-        cleaned_lines = [line.strip() for line in lines if line.strip()]
-
         seen_dates = set()
+
         for line in cleaned_lines:
             if "שם העובד" in line:
                 parts = line.split(":")
                 if len(parts) > 1 and parts[1].strip():
                     employee_name = parts[1].strip()
 
-            date_match = re.search(
-                r'(?<!\d)\d{1,2}/\d{1,2}/\d{2}(?!\d)',
-                line
-            )
+            date_str = self.extract_date(line)
 
-            if not date_match:
+            if not date_str:
                 continue
-
-            date_str = date_match.group(0)
 
             if date_str in seen_dates:
                 continue
 
-            # חילוץ השעות מאותה שורה בלבד
-            hours = re.findall(r'\d{1,2}:\d{2}', line)
-
-            # חילוץ סך שעות העבודה
+            hours = self.extract_times(line)
             nums = re.findall(r'(?<!\d)3[.]?50(?!\d)', line)
 
             if len(hours) < 2 or not nums:
                 continue
 
-            # בדוח הזה שעת הכניסה היא 8:30 והיציאה 12:00
             entry_time = "8:30"
             exit_time = "12:00"
-            total_h = 3.5
             break_h = 0.0
 
+            total_h = self.calculate_total_hours(
+                entry_time,
+                exit_time,
+                break_h
+            )
+
             try:
-                date_obj = datetime.strptime(date_str, "%d/%m/%y")
+                date_obj = self.parse_date(date_str)
                 day_str = days_list[date_obj.weekday()]
             except ValueError:
                 continue
@@ -62,12 +60,12 @@ class TypeBParser(BaseParser):
                 AttendanceRow(
                     date=date_str,
                     day=day_str,
-                    entry=entry_time,
-                    exit_time=exit_time,
+                    entry=datetime.strptime(entry_time, "%H:%M").time(),
+                    exit_time=datetime.strptime(exit_time, "%H:%M").time(),
                     break_hours=break_h,
                     total_hours=total_h,
                     workplace="",
-                    h_100=total_h,
+                    h_100=0.0,
                     h_125=0.0,
                     h_150=0.0,
                     shabbat=0.0
@@ -76,12 +74,10 @@ class TypeBParser(BaseParser):
 
             seen_dates.add(date_str)
 
-        print(f"Type B: נמצאו {len(report_rows)} שורות נוכחות")
-
         return AttendanceReport(
-            company_name="נ.ע. הנשר כח אדם בע\"מ",
+            company_name=company_name,
             employee_name=employee_name,
-            month="10/2022",
-            report_type="B",
-            rows=report_rows
+            month="09/2022",
+            report_type=ReportType.TYPE_B,
+            rows=tuple(report_rows)
         )

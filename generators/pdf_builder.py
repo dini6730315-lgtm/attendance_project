@@ -43,8 +43,16 @@ def generate_report_pdf(report: AttendanceReport, output_pdf_path: str = "attend
     for r in report.rows:
         total_hours += r.total_hours
         row_data = [
-            r.date, r.day, r.workplace, r.entry, r.exit_time, f"{r.break_hours:.2f}",
-            f"{r.total_hours:.2f}", f"{r.h_100:.2f}", f"{r.h_125:.2f}", f"{r.h_150:.2f}"
+            r.date,
+            r.day,
+            r.workplace,
+            r.entry.strftime("%H:%M"),
+            r.exit_time.strftime("%H:%M"),
+            f"{r.break_hours:.2f}",
+            f"{r.total_hours:.2f}",
+            f"{r.h_100:.2f}",
+            f"{r.h_125:.2f}",
+            f"{r.h_150:.2f}"
         ]
 
         for i, val in enumerate(row_data):
