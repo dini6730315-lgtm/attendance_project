@@ -3,7 +3,7 @@ from models.report_types import ReportType
 from .base_parser import BaseParser
 from models.attendance_models import AttendanceReport, AttendanceRow
 from datetime import datetime
-
+import re
 
 class TypeBParser(BaseParser):
     def parse(self, lines: List[str]) -> AttendanceReport:

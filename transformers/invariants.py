@@ -43,6 +43,15 @@ def validate_row_invariants(row: AttendanceRow) -> bool:
 
         if abs(calculated_total - row.total_hours) > 0.05:
             return False
+        hours_breakdown = (
+            row.h_100 +
+            row.h_125 +
+            row.h_150 +
+            row.shabbat
+        )
+
+        if abs(hours_breakdown - row.total_hours) > 0.05:
+            return False
 
         return True
 
